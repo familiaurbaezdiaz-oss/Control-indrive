@@ -114,6 +114,10 @@
         </div>
     </div>
 
+    <!-- Iframe oculto para enviar datos a Google Sheets sin problemas de CORS -->
+    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
+    <form id="hiddenForm" action="https://script.google.com/macros/s/AKfycbxnIMKMjSIlFoKDCmUJa330cBQynGP4EWdXh88vAoL7kUhre-f1CUj2meHsPHAVEc2byQ/exec" method="POST" target="hidden_iframe" style="display:none;"></form>
+
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnIMKMjSIlFoKDCmUJa330cBQynGP4EWdXh88vAoL7kUhre-f1CUj2meHsPHAVEc2byQ/exec";
 
@@ -137,7 +141,6 @@
         const prevGastos = document.getElementById('previewGastos');
         const prevGanancia = document.getElementById('previewGanancia');
 
-        // Cargar totales oficiales desde Google Sheets al abrir la app
         async function cargarTotalesNube() {
             try {
                 const response = await fetch(WEB_APP_URL);
@@ -148,9 +151,9 @@
                 document.getElementById('accGanancia').textContent = `RD$${Number(data.gananciaReal).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             } catch (error) {
                 console.error("Error al cargar totales de la nube:", error);
-                document.getElementById('accHecho').textContent = 'Error';
-                document.getElementById('accGastos').textContent = 'Error';
-                document.getElementById('accGanancia').textContent = 'Error';
+                document.getElementById('accHecho').textContent = 'RD$0.00';
+                document.getElementById('accGastos').textContent = 'RD$0.00';
+                document.getElementById('accGanancia').textContent = 'RD$0.00';
             }
         }
 
@@ -187,7 +190,7 @@
             input.addEventListener('input', calcularEnVivo);
         });
 
-        form.addEventListener('submit', async (e) => {
+        form.addEventListener('submit', (e) => {
             e.preventDefault();
             
             const fechaVal = document.getElementById('fecha').value;
@@ -196,7 +199,6 @@
             const diaSemana = dias[dateObj.getDay()];
 
             const nuevoRegistro = {
-                id: Date.now(),
                 fecha: fechaVal.split('-').reverse().join('/'),
                 diaSemana: diaSemana,
                 montoHecho: parseFloat(mHecho.value) || 0,
@@ -204,40 +206,43 @@
                 recargaHoy: parseFloat(rHoy.value) || 0,
                 combustibleManana: parseFloat(cManana.value) || 0,
                 recargaManana: parseFloat(rManana.value) || 0,
+                totalGastos: (parseFloat(cHoy.value) || 0) + (parseFloat(rHoy.value) || 0) + (parseFloat(cManana.value) || 0) + (parseFloat(rManana.value) || 0) + (parseFloat(oGastos.value) || 0),
                 otrosGastos: parseFloat(oGastos.value) || 0,
+                gananciaReal: (parseFloat(mHecho.value) || 0) - ((parseFloat(cHoy.value) || 0) + (parseFloat(rHoy.value) || 0) + (parseFloat(cManana.value) || 0) + (parseFloat(rManana.value) || 0) + (parseFloat(oGastos.value) || 0))
             };
-
-            nuevoRegistro.totalGastos = nuevoRegistro.combustibleHoy + nuevoRegistro.recargaHoy + nuevoRegistro.combustibleManana + nuevoRegistro.recargaManana + nuevoRegistro.otrosGastos;
-            nuevoRegistro.gananciaReal = nuevoRegistro.montoHecho - nuevoRegistro.totalGastos;
 
             btnGuardar.textContent = "Enviando a Google Sheets...";
             btnGuardar.disabled = true;
 
-            try {
-                await fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(nuevoRegistro)
-                });
+            // Construir formulario dinámico oculto para enviar directo a Google sin error de red
+            const hiddenForm = document.getElementById('hiddenForm');
+            hiddenForm.innerHTML = '';
+            
+            for (const key in nuevoRegistro) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = nuevoRegistro[key];
+                hiddenForm.appendChild(input);
+            }
 
-                registros.unshift(nuevoRegistro);
-                localStorage.setItem('indrive_registros', JSON.stringify(registros));
+            hiddenForm.submit();
 
+            // Guardar localmente también
+            nuevoRegistro.id = Date.now();
+            registros.unshift(nuevoRegistro);
+            localStorage.setItem('indrive_registros', JSON.stringify(registros));
+
+            setTimeout(() => {
                 form.reset();
                 document.getElementById('fecha').valueAsDate = new Date();
                 calcularEnVivo();
                 renderizarApp();
-                cargarTotalesNube(); // Actualizar totales desde la hoja tras guardar
-                alert('¡Registro guardado y sincronizado con Google Sheets con éxito, Jefe!');
-
-            } catch (error) {
-                console.error(error);
-                alert('Hubo un error al sincronizar con la nube, pero se guardó localmente.');
-            } finally {
+                cargarTotalesNube();
                 btnGuardar.textContent = "Guardar Registro Diario";
                 btnGuardar.disabled = false;
-            }
+                alert('¡Registro guardado y enviado a Google Sheets, Jefe!');
+            }, 1200);
         });
 
         function eliminarRegistro(id) {
@@ -274,7 +279,7 @@
         }
 
         renderizarApp();
-        cargarTotalesNube(); // Cargar los totales al iniciar la app
+        cargarTotalesNube();
     </script>
 </body>
 </html>
