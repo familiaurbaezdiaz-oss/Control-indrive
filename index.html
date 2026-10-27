@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Diario InDrive - Jefe</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-p-4 pb-12">
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 pb-12">
 
-    <div class="max-w-md mx-auto p-4 sm:p-6">
+    <div class="max-w-md mx-auto p-2 sm:p-6">
         <!-- Encabezado -->
         <header class="text-center mb-6">
             <h1 class="text-2xl font-bold text-amber-400">Control Diario InDrive</h1>
@@ -21,23 +21,28 @@
 
         <!-- Tarjetas de Resumen Acumulado (Sincronizadas con Google Sheets) -->
         <div class="grid grid-cols-3 gap-2 mb-6">
-            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center">
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center shadow-md">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400">Hecho</span>
-                <span id="accHecho" class="text-sm sm:text-base font-bold text-emerald-400">Cargando...</span>
+                <span id="accHecho" class="text-xs sm:text-sm font-bold text-emerald-400">Cargando...</span>
             </div>
-            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center">
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center shadow-md">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400">Gastos</span>
-                <span id="accGastos" class="text-sm sm:text-base font-bold text-rose-400">Cargando...</span>
+                <span id="accGastos" class="text-xs sm:text-sm font-bold text-rose-400">Cargando...</span>
             </div>
-            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center">
+            <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center shadow-md">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400">Ganancia</span>
-                <span id="accGanancia" class="text-sm sm:text-base font-bold text-amber-400">Cargando...</span>
+                <span id="accGanancia" class="text-xs sm:text-sm font-bold text-amber-400">Cargando...</span>
             </div>
         </div>
 
-        <!-- Formulario de Registro -->
+        <!-- Formulario de Registro con Borrador Anti-Pérdida -->
         <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl mb-6">
-            <h2 class="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider">Nuevo Registro Diario</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Nuevo Registro Diario</h2>
+                <span id="draftBadge" class="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full hidden">
+                    Borrador auto-guardado
+                </span>
+            </div>
             
             <form id="registroForm" class="space-y-4">
                 <div>
@@ -50,8 +55,8 @@
                     <label class="block text-xs font-medium text-amber-300 mb-1">Monto de viaje individual</label>
                     <div class="flex items-center gap-1.5">
                         <input type="number" step="any" id="viajeInput" placeholder="Ej. 250" class="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
-                        <button type="button" id="btnSumarViaje" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg text-base transition duration-200 cursor-pointer shadow-md shrink-0">+</button>
-                        <button type="button" id="btnRestarViaje" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-2 rounded-lg text-base transition duration-200 cursor-pointer shadow-md shrink-0">-</button>
+                        <button type="button" id="btnSumarViaje" class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-3.5 py-2 rounded-lg text-base transition duration-150 cursor-pointer shadow-md shrink-0">+</button>
+                        <button type="button" id="btnRestarViaje" class="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold px-3.5 py-2 rounded-lg text-base transition duration-150 cursor-pointer shadow-md shrink-0">-</button>
                     </div>
                 </div>
 
@@ -107,7 +112,7 @@
 
         <!-- Historial Local -->
         <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
-            <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Historial Local</h2>
+            <h2 class="text-xs font-semibold text-slate-300 mb-3 uppercase tracking-wider">Historial Local</h2>
             <div id="historialContainer" class="space-y-3 max-h-80 overflow-y-auto pr-1">
                 <p class="text-xs text-slate-500 text-center py-4">No hay registros guardados aún.</p>
             </div>
@@ -117,11 +122,10 @@
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnIMKMjSIlFoKDCmUJa330cBQynGP4EWdXh88vAoL7kUhre-f1CUj2meHsPHAVEc2byQ/exec";
 
-        document.getElementById('fecha').valueAsDate = new Date();
-
         let registros = JSON.parse(localStorage.getItem('indrive_registros')) || [];
 
         const form = document.getElementById('registroForm');
+        const fechaInput = document.getElementById('fecha');
         const mHecho = document.getElementById('montoHecho');
         const viajeInput = document.getElementById('viajeInput');
         const btnSumar = document.getElementById('btnSumarViaje');
@@ -136,6 +140,63 @@
 
         const prevGastos = document.getElementById('previewGastos');
         const prevGanancia = document.getElementById('previewGanancia');
+        const draftBadge = document.getElementById('draftBadge');
+
+        // Inicialización y recuperación de Borrador
+        document.addEventListener('DOMContentLoaded', () => {
+            fechaInput.valueAsDate = new Date();
+            restaurarBorrador();
+            calcularEnVivo();
+            renderizarApp();
+            cargarTotalesNube();
+        });
+
+        // Guardar Borrador automáticamente en LocalStorage para evitar pérdidas
+        function guardarBorrador() {
+            const draft = {
+                fecha: fechaInput.value,
+                montoHecho: mHecho.value,
+                combustibleHoy: cHoy.value,
+                recargaHoy: rHoy.value,
+                combustibleManana: cManana.value,
+                recargaManana: rManana.value,
+                otrosGastos: oGastos.value
+            };
+            localStorage.setItem('indrive_form_draft', JSON.stringify(draft));
+            
+            // Mostrar indicador visual de borrador si hay datos ingresados
+            const tieneDatos = Object.values(draft).some(v => v && v !== "" && v !== "0");
+            if (tieneDatos) {
+                draftBadge.classList.remove('hidden');
+            } else {
+                draftBadge.classList.add('hidden');
+            }
+        }
+
+        // Restaurar campos desde el borrador
+        function restaurarBorrador() {
+            const savedDraft = localStorage.getItem('indrive_form_draft');
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    if (draft.fecha) fechaInput.value = draft.fecha;
+                    if (draft.montoHecho) mHecho.value = draft.montoHecho;
+                    if (draft.combustibleHoy) cHoy.value = draft.combustibleHoy;
+                    if (draft.recargaHoy) rHoy.value = draft.recargaHoy;
+                    if (draft.combustibleManana) cManana.value = draft.combustibleManana;
+                    if (draft.recargaManana) rManana.value = draft.recargaManana;
+                    if (draft.otrosGastos) oGastos.value = draft.otrosGastos;
+                    draftBadge.classList.remove('hidden');
+                } catch(e) {
+                    console.error("Error cargando borrador:", e);
+                }
+            }
+        }
+
+        function borrarBorrador() {
+            localStorage.removeItem('indrive_form_draft');
+            draftBadge.classList.add('hidden');
+        }
 
         async function cargarTotalesNube() {
             try {
@@ -156,6 +217,7 @@
             mHecho.value = actual + extra;
             viajeInput.value = '';
             calcularEnVivo();
+            guardarBorrador();
         });
 
         btnRestar.addEventListener('click', () => {
@@ -164,6 +226,7 @@
             mHecho.value = Math.max(0, actual - menos);
             viajeInput.value = '';
             calcularEnVivo();
+            guardarBorrador();
         });
 
         function calcularEnVivo() {
@@ -179,14 +242,18 @@
             prevGanancia.textContent = `RD$${ganancia.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
         }
 
-        [mHecho, cHoy, rHoy, cManana, rManana, oGastos].forEach(input => {
-            input.addEventListener('input', calcularEnVivo);
+        // Eventos para recalcular y auto-guardar borrador sin interferir con la pantalla
+        [fechaInput, mHecho, cHoy, rHoy, cManana, rManana, oGastos].forEach(input => {
+            input.addEventListener('input', () => {
+                calcularEnVivo();
+                guardarBorrador();
+            });
         });
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const fechaVal = document.getElementById('fecha').value;
+            const fechaVal = fechaInput.value;
             const dateObj = new Date(fechaVal + 'T00:00:00');
             const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
             const diaSemana = dias[dateObj.getDay()];
@@ -223,12 +290,13 @@
                 registros.unshift(nuevoRegistro);
                 localStorage.setItem('indrive_registros', JSON.stringify(registros));
 
+                // Limpiar formulario Y borrador únicamente tras éxito
+                borrarBorrador();
                 form.reset();
-                document.getElementById('fecha').valueAsDate = new Date();
+                fechaInput.valueAsDate = new Date();
                 calcularEnVivo();
                 renderizarApp();
                 
-                // Esperar un segundo para que Google Sheets procese y luego recargar totales
                 setTimeout(() => {
                     cargarTotalesNube();
                 }, 1500);
@@ -279,9 +347,9 @@
                 container.appendChild(card);
             });
         }
-
-        renderizarApp();
-        cargarTotalesNube();
     </script>
 </body>
 </html>
+```
+
+Tu código de **Google Apps Script** está perfecto y no necesita cambios. ¡Con este ajuste en el código web ya puedes pausar todo el tiempo que quieras mientras anotas tus viajes sin perder ni un solo peso! 🚗💨
