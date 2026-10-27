@@ -46,6 +46,16 @@
                     <input type="date" id="fecha" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
                 </div>
 
+                <!-- NUEVA SECCIÓN: Agregar / Restar Viajes Rápido -->
+                <div class="bg-slate-900/70 p-3 rounded-xl border border-amber-500/30">
+                    <label class="block text-xs font-medium text-amber-300 mb-1">Monto de viaje individual</label>
+                    <div class="flex gap-2">
+                        <input type="number" step="any" id="viajeInput" placeholder="Ej. 250" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
+                        <button type="button" id="btnSumarViaje" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 rounded-lg text-lg transition duration-250 cursor-pointer shadow-md">+</button>
+                        <button type="button" id="btnRestarViaje" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-4 rounded-lg text-lg transition duration-250 cursor-pointer shadow-md">-</button>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-xs font-medium text-amber-300 mb-1">Monto hecho en InDrive (RD$)</label>
                     <input type="number" step="any" id="montoHecho" placeholder="0.00" required class="w-full bg-slate-900 border border-amber-500/50 rounded-lg p-2.5 text-sm text-amber-300 font-semibold focus:outline-none focus:border-amber-400">
@@ -106,13 +116,16 @@
     </div>
 
     <script>
-        // Establecer fecha actual por defecto
         document.getElementById('fecha').valueAsDate = new Date();
 
         let registros = JSON.parse(localStorage.getItem('indrive_registros')) || [];
 
         const form = document.getElementById('registroForm');
         const mHecho = document.getElementById('montoHecho');
+        const viajeInput = document.getElementById('viajeInput');
+        const btnSumar = document.getElementById('btnSumarViaje');
+        const btnRestar = document.getElementById('btnRestarViaje');
+
         const cHoy = document.getElementById('combustibleHoy');
         const rHoy = document.getElementById('recargaHoy');
         const cManana = document.getElementById('combustibleManana');
@@ -121,6 +134,23 @@
 
         const prevGastos = document.getElementById('previewGastos');
         const prevGanancia = document.getElementById('previewGanancia');
+
+        // Lógica para los botones de más (+) y menos (-) de los viajes
+        btnSumar.addEventListener('click', () => {
+            const actual = parseFloat(mHecho.value) || 0;
+            const extra = parseFloat(viajeInput.value) || 0;
+            mHecho.value = actual + extra;
+            viajeInput.value = '';
+            calcularEnVivo();
+        });
+
+        btnRestar.addEventListener('click', () => {
+            const actual = parseFloat(mHecho.value) || 0;
+            const menos = parseFloat(viajeInput.value) || 0;
+            mHecho.value = Math.max(0, actual - menos);
+            viajeInput.value = '';
+            calcularEnVivo();
+        });
 
         function calcularEnVivo() {
             const hecho = parseFloat(mHecho.value) || 0;
@@ -142,9 +172,16 @@
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             
+            // Obtener el día de la semana en español
+            const fechaVal = document.getElementById('fecha').value;
+            const dateObj = new Date(fechaVal + 'T00:00:00');
+            const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            const diaSemana = dias[dateObj.getDay()];
+
             const nuevoRegistro = {
                 id: Date.now(),
-                fecha: document.getElementById('fecha').value,
+                fecha: fechaVal.split('-').reverse().join('/'), // Formato DD/MM/YYYY
+                diaSemana: diaSemana,
                 montoHecho: parseFloat(mHecho.value) || 0,
                 combustibleHoy: parseFloat(cHoy.value) || 0,
                 recargaHoy: parseFloat(rHoy.value) || 0,
@@ -193,7 +230,7 @@
                 card.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 flex justify-between items-center text-xs";
                 card.innerHTML = `
                     <div>
-                        <span class="font-bold text-slate-200">${r.fecha}</span>
+                        <span class="font-bold text-slate-200">${r.fecha} (${r.diaSemana})</span>
                         <div class="text-slate-400 mt-0.5">Hecho: <span class="text-emerald-400 font-semibold">RD$${r.montoHecho.toLocaleString()}</span></div>
                         <div class="text-slate-400">Gastos: <span class="text-rose-400 font-semibold">RD$${r.totalGastos.toLocaleString()}</span></div>
                     </div>
