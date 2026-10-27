@@ -46,7 +46,7 @@
                     <input type="date" id="fecha" required class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
                 </div>
 
-                <!-- NUEVA SECCIÓN: Agregar / Restar Viajes Rápido -->
+                <!-- Sección: Agregar / Restar Viajes Rápido -->
                 <div class="bg-slate-900/70 p-3 rounded-xl border border-amber-500/30">
                     <label class="block text-xs font-medium text-amber-300 mb-1">Monto de viaje individual</label>
                     <div class="flex gap-2">
@@ -100,7 +100,7 @@
                     </div>
                 </div>
 
-                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition duration-200 shadow-lg shadow-amber-500/20 cursor-pointer">
+                <button type="submit" id="btnGuardar" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl transition duration-200 shadow-lg shadow-amber-500/20 cursor-pointer">
                     Guardar Registro Diario
                 </button>
             </form>
@@ -116,6 +116,9 @@
     </div>
 
     <script>
+        // URL de tu Google Apps Script
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnIMKMjSIlFoKDCmUJa330cBQynGP4EWdXh88vAoL7kUhre-f1CUj2meHsPHAVEc2byQ/exec";
+
         document.getElementById('fecha').valueAsDate = new Date();
 
         let registros = JSON.parse(localStorage.getItem('indrive_registros')) || [];
@@ -125,6 +128,7 @@
         const viajeInput = document.getElementById('viajeInput');
         const btnSumar = document.getElementById('btnSumarViaje');
         const btnRestar = document.getElementById('btnRestarViaje');
+        const btnGuardar = document.getElementById('btnGuardar');
 
         const cHoy = document.getElementById('combustibleHoy');
         const rHoy = document.getElementById('recargaHoy');
@@ -135,7 +139,6 @@
         const prevGastos = document.getElementById('previewGastos');
         const prevGanancia = document.getElementById('previewGanancia');
 
-        // Lógica para los botones de más (+) y menos (-) de los viajes
         btnSumar.addEventListener('click', () => {
             const actual = parseFloat(mHecho.value) || 0;
             const extra = parseFloat(viajeInput.value) || 0;
@@ -169,10 +172,9 @@
             input.addEventListener('input', calcularEnVivo);
         });
 
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Obtener el día de la semana en español
             const fechaVal = document.getElementById('fecha').value;
             const dateObj = new Date(fechaVal + 'T00:00:00');
             const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -180,7 +182,7 @@
 
             const nuevoRegistro = {
                 id: Date.now(),
-                fecha: fechaVal.split('-').reverse().join('/'), // Formato DD/MM/YYYY
+                fecha: fechaVal.split('-').reverse().join('/'),
                 diaSemana: diaSemana,
                 montoHecho: parseFloat(mHecho.value) || 0,
                 combustibleHoy: parseFloat(cHoy.value) || 0,
@@ -193,13 +195,36 @@
             nuevoRegistro.totalGastos = nuevoRegistro.combustibleHoy + nuevoRegistro.recargaHoy + nuevoRegistro.combustibleManana + nuevoRegistro.recargaManana + nuevoRegistro.otrosGastos;
             nuevoRegistro.gananciaReal = nuevoRegistro.montoHecho - nuevoRegistro.totalGastos;
 
-            registros.unshift(nuevoRegistro);
-            localStorage.setItem('indrive_registros', JSON.stringify(registros));
+            // Deshabilitar botón mientras envía
+            btnGuardar.textContent = "Enviando a Google Sheets...";
+            btnGuardar.disabled = true;
 
-            form.reset();
-            document.getElementById('fecha').valueAsDate = new Date();
-            calcularEnVivo();
-            renderizarApp();
+            try {
+                // Enviar datos a Google Sheets vía Apps Script
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(nuevoRegistro)
+                });
+
+                // Guardar localmente también como respaldo
+                registros.unshift(nuevoRegistro);
+                localStorage.setItem('indrive_registros', JSON.stringify(registros));
+
+                form.reset();
+                document.getElementById('fecha').valueAsDate = new Date();
+                calcularEnVivo();
+                renderizarApp();
+                alert('¡Registro guardado y sincronizado con Google Sheets con éxito, Jefe!');
+
+            } catch (error) {
+                console.error(error);
+                alert('Hubo un error al sincronizar con la nube, pero se guardó localmente.');
+            } finally {
+                btnGuardar.textContent = "Guardar Registro Diario";
+                btnGuardar.disabled = false;
+            }
         });
 
         function eliminarRegistro(id) {
