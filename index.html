@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Diario InDrive - Jefe</title>
-    <!-- Tailwind CSS para un diseño moderno -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -17,22 +16,22 @@
         <!-- Encabezado -->
         <header class="text-center mb-6">
             <h1 class="text-2xl font-bold text-amber-400">Control Diario InDrive</h1>
-            <p class="text-xs text-slate-400 mt-1">Panel de control financiero y operativo</p>
+            <p class="text-xs text-slate-400 mt-1">Panel sincronizado con Google Sheets</p>
         </header>
 
-        <!-- Tarjetas de Resumen Acumulado -->
+        <!-- Tarjetas de Resumen Acumulado (Sincronizadas con Google Sheets) -->
         <div class="grid grid-cols-3 gap-2 mb-6">
             <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400">Hecho</span>
-                <span id="accHecho" class="text-sm sm:text-base font-bold text-emerald-400">RD$0.00</span>
+                <span id="accHecho" class="text-sm sm:text-base font-bold text-emerald-400">Cargando...</span>
             </div>
             <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400">Gastos</span>
-                <span id="accGastos" class="text-sm sm:text-base font-bold text-rose-400">RD$0.00</span>
+                <span id="accGastos" class="text-sm sm:text-base font-bold text-rose-400">Cargando...</span>
             </div>
             <div class="bg-slate-800 p-3 rounded-xl border border-slate-700 text-center">
                 <span class="block text-[10px] uppercase tracking-wider text-slate-400">Ganancia</span>
-                <span id="accGanancia" class="text-sm sm:text-base font-bold text-amber-400">RD$0.00</span>
+                <span id="accGanancia" class="text-sm sm:text-base font-bold text-amber-400">Cargando...</span>
             </div>
         </div>
 
@@ -49,10 +48,10 @@
                 <!-- Sección: Agregar / Restar Viajes Rápido -->
                 <div class="bg-slate-900/70 p-3 rounded-xl border border-amber-500/30">
                     <label class="block text-xs font-medium text-amber-300 mb-1">Monto de viaje individual</label>
-                    <div class="flex gap-2">
-                        <input type="number" step="any" id="viajeInput" placeholder="Ej. 250" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
-                        <button type="button" id="btnSumarViaje" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 rounded-lg text-lg transition duration-250 cursor-pointer shadow-md">+</button>
-                        <button type="button" id="btnRestarViaje" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-4 rounded-lg text-lg transition duration-250 cursor-pointer shadow-md">-</button>
+                    <div class="flex items-center gap-1.5">
+                        <input type="number" step="any" id="viajeInput" placeholder="Ej. 250" class="w-full min-w-0 bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 focus:outline-none focus:border-amber-400">
+                        <button type="button" id="btnSumarViaje" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3.5 py-2 rounded-lg text-base transition duration-200 cursor-pointer shadow-md shrink-0">+</button>
+                        <button type="button" id="btnRestarViaje" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3.5 py-2 rounded-lg text-base transition duration-200 cursor-pointer shadow-md shrink-0">-</button>
                     </div>
                 </div>
 
@@ -106,9 +105,9 @@
             </form>
         </div>
 
-        <!-- Historial de Registros -->
+        <!-- Historial Local -->
         <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-xl">
-            <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Historial de Registros</h2>
+            <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Historial Local</h2>
             <div id="historialContainer" class="space-y-3 max-h-80 overflow-y-auto pr-1">
                 <p class="text-xs text-slate-500 text-center py-4">No hay registros guardados aún.</p>
             </div>
@@ -116,7 +115,6 @@
     </div>
 
     <script>
-        // URL de tu Google Apps Script
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnIMKMjSIlFoKDCmUJa330cBQynGP4EWdXh88vAoL7kUhre-f1CUj2meHsPHAVEc2byQ/exec";
 
         document.getElementById('fecha').valueAsDate = new Date();
@@ -138,6 +136,23 @@
 
         const prevGastos = document.getElementById('previewGastos');
         const prevGanancia = document.getElementById('previewGanancia');
+
+        // Cargar totales oficiales desde Google Sheets al abrir la app
+        async function cargarTotalesNube() {
+            try {
+                const response = await fetch(WEB_APP_URL);
+                const data = await response.json();
+                
+                document.getElementById('accHecho').textContent = `RD$${Number(data.totalHecho).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('accGastos').textContent = `RD$${Number(data.totalGastos).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('accGanancia').textContent = `RD$${Number(data.gananciaReal).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            } catch (error) {
+                console.error("Error al cargar totales de la nube:", error);
+                document.getElementById('accHecho').textContent = 'Error';
+                document.getElementById('accGastos').textContent = 'Error';
+                document.getElementById('accGanancia').textContent = 'Error';
+            }
+        }
 
         btnSumar.addEventListener('click', () => {
             const actual = parseFloat(mHecho.value) || 0;
@@ -195,12 +210,10 @@
             nuevoRegistro.totalGastos = nuevoRegistro.combustibleHoy + nuevoRegistro.recargaHoy + nuevoRegistro.combustibleManana + nuevoRegistro.recargaManana + nuevoRegistro.otrosGastos;
             nuevoRegistro.gananciaReal = nuevoRegistro.montoHecho - nuevoRegistro.totalGastos;
 
-            // Deshabilitar botón mientras envía
             btnGuardar.textContent = "Enviando a Google Sheets...";
             btnGuardar.disabled = true;
 
             try {
-                // Enviar datos a Google Sheets vía Apps Script
                 await fetch(WEB_APP_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -208,7 +221,6 @@
                     body: JSON.stringify(nuevoRegistro)
                 });
 
-                // Guardar localmente también como respaldo
                 registros.unshift(nuevoRegistro);
                 localStorage.setItem('indrive_registros', JSON.stringify(registros));
 
@@ -216,6 +228,7 @@
                 document.getElementById('fecha').valueAsDate = new Date();
                 calcularEnVivo();
                 renderizarApp();
+                cargarTotalesNube(); // Actualizar totales desde la hoja tras guardar
                 alert('¡Registro guardado y sincronizado con Google Sheets con éxito, Jefe!');
 
             } catch (error) {
@@ -235,22 +248,13 @@
 
         function renderizarApp() {
             const container = document.getElementById('historialContainer');
-            let totalH = 0, totalG = 0, totalGr = 0;
-
             if (registros.length === 0) {
                 container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No hay registros guardados aún.</p>`;
-                document.getElementById('accHecho').textContent = 'RD$0.00';
-                document.getElementById('accGastos').textContent = 'RD$0.00';
-                document.getElementById('accGanancia').textContent = 'RD$0.00';
                 return;
             }
 
             container.innerHTML = '';
             registros.forEach(r => {
-                totalH += r.montoHecho;
-                totalG += r.totalGastos;
-                totalGr += r.gananciaReal;
-
                 const card = document.createElement('div');
                 card.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 flex justify-between items-center text-xs";
                 card.innerHTML = `
@@ -267,13 +271,10 @@
                 `;
                 container.appendChild(card);
             });
-
-            document.getElementById('accHecho').textContent = `RD$${totalH.toLocaleString()}`;
-            document.getElementById('accGastos').textContent = `RD$${totalG.toLocaleString()}`;
-            document.getElementById('accGanancia').textContent = `RD$${totalGr.toLocaleString()}`;
         }
 
         renderizarApp();
+        cargarTotalesNube(); // Cargar los totales al iniciar la app
     </script>
 </body>
 </html>
