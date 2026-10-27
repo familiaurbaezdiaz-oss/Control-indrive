@@ -114,10 +114,6 @@
         </div>
     </div>
 
-    <!-- Iframe oculto para enviar datos a Google Sheets sin problemas de CORS -->
-    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
-    <form id="hiddenForm" action="https://script.google.com/macros/s/AKfycbxnIMKMjSIlFoKDCmUJa330cBQynGP4EWdXh88vAoL7kUhre-f1CUj2meHsPHAVEc2byQ/exec" method="POST" target="hidden_iframe" style="display:none;"></form>
-
     <script>
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxnIMKMjSIlFoKDCmUJa330cBQynGP4EWdXh88vAoL7kUhre-f1CUj2meHsPHAVEc2byQ/exec";
 
@@ -151,9 +147,6 @@
                 document.getElementById('accGanancia').textContent = `RD$${Number(data.gananciaReal).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
             } catch (error) {
                 console.error("Error al cargar totales de la nube:", error);
-                document.getElementById('accHecho').textContent = 'RD$0.00';
-                document.getElementById('accGastos').textContent = 'RD$0.00';
-                document.getElementById('accGanancia').textContent = 'RD$0.00';
             }
         }
 
@@ -190,7 +183,7 @@
             input.addEventListener('input', calcularEnVivo);
         });
 
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const fechaVal = document.getElementById('fecha').value;
@@ -206,43 +199,49 @@
                 recargaHoy: parseFloat(rHoy.value) || 0,
                 combustibleManana: parseFloat(cManana.value) || 0,
                 recargaManana: parseFloat(rManana.value) || 0,
-                totalGastos: (parseFloat(cHoy.value) || 0) + (parseFloat(rHoy.value) || 0) + (parseFloat(cManana.value) || 0) + (parseFloat(rManana.value) || 0) + (parseFloat(oGastos.value) || 0),
-                otrosGastos: parseFloat(oGastos.value) || 0,
-                gananciaReal: (parseFloat(mHecho.value) || 0) - ((parseFloat(cHoy.value) || 0) + (parseFloat(rHoy.value) || 0) + (parseFloat(cManana.value) || 0) + (parseFloat(rManana.value) || 0) + (parseFloat(oGastos.value) || 0))
+                otrosGastos: parseFloat(oGastos.value) || 0
             };
 
             btnGuardar.textContent = "Enviando a Google Sheets...";
             btnGuardar.disabled = true;
 
-            // Construir formulario dinámico oculto para enviar directo a Google sin error de red
-            const hiddenForm = document.getElementById('hiddenForm');
-            hiddenForm.innerHTML = '';
-            
-            for (const key in nuevoRegistro) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = nuevoRegistro[key];
-                hiddenForm.appendChild(input);
-            }
+            try {
+                // Envío optimizado mediante URL-encoded POST para evitar bloqueos CORS
+                const formData = new URLSearchParams(nuevoRegistro);
+                await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData.toString()
+                });
 
-            hiddenForm.submit();
+                // Guardar localmente
+                nuevoRegistro.id = Date.now();
+                nuevoRegistro.totalGastos = nuevoRegistro.combustibleHoy + nuevoRegistro.recargaHoy + nuevoRegistro.combustibleManana + nuevoRegistro.recargaManana + nuevoRegistro.otrosGastos;
+                nuevoRegistro.gananciaReal = nuevoRegistro.montoHecho - nuevoRegistro.totalGastos;
+                
+                registros.unshift(nuevoRegistro);
+                localStorage.setItem('indrive_registros', JSON.stringify(registros));
 
-            // Guardar localmente también
-            nuevoRegistro.id = Date.now();
-            registros.unshift(nuevoRegistro);
-            localStorage.setItem('indrive_registros', JSON.stringify(registros));
-
-            setTimeout(() => {
                 form.reset();
                 document.getElementById('fecha').valueAsDate = new Date();
                 calcularEnVivo();
                 renderizarApp();
-                cargarTotalesNube();
+                
+                // Esperar un segundo para que Google Sheets procese y luego recargar totales
+                setTimeout(() => {
+                    cargarTotalesNube();
+                }, 1500);
+
+                alert('¡Registro guardado y enviado a Google Sheets con éxito, Jefe!');
+
+            } catch (error) {
+                console.error(error);
+                alert('Hubo un error al sincronizar con la nube.');
+            } finally {
                 btnGuardar.textContent = "Guardar Registro Diario";
                 btnGuardar.disabled = false;
-                alert('¡Registro guardado y enviado a Google Sheets, Jefe!');
-            }, 1200);
+            }
         });
 
         function eliminarRegistro(id) {
@@ -260,17 +259,20 @@
 
             container.innerHTML = '';
             registros.forEach(r => {
+                const totalG = r.combustibleHoy + r.recargaHoy + r.combustibleManana + r.recargaManana + r.otrosGastos;
+                const ganancia = r.montoHecho - totalG;
+
                 const card = document.createElement('div');
                 card.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 flex justify-between items-center text-xs";
                 card.innerHTML = `
                     <div>
                         <span class="font-bold text-slate-200">${r.fecha} (${r.diaSemana})</span>
                         <div class="text-slate-400 mt-0.5">Hecho: <span class="text-emerald-400 font-semibold">RD$${r.montoHecho.toLocaleString()}</span></div>
-                        <div class="text-slate-400">Gastos: <span class="text-rose-400 font-semibold">RD$${r.totalGastos.toLocaleString()}</span></div>
+                        <div class="text-slate-400">Gastos: <span class="text-rose-400 font-semibold">RD$${totalG.toLocaleString()}</span></div>
                     </div>
                     <div class="text-right">
                         <span class="block text-[10px] text-slate-400 uppercase">Ganancia Real</span>
-                        <span class="text-sm font-bold text-amber-400">RD$${r.gananciaReal.toLocaleString()}</span>
+                        <span class="text-sm font-bold text-amber-400">RD$${ganancia.toLocaleString()}</span>
                         <button onclick="eliminarRegistro(${r.id})" class="text-[10px] text-rose-500 hover:underline block mt-1">Eliminar</button>
                     </div>
                 `;
